@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: docker-manager-austinhellerrepo
+Version: 0.0.1
+Summary: A basic docker management package
+Home-page: https://github.com/AustinHellerRepo/DockerManager
+Author: Austin Heller
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operation System :: OS Independent
+Requires-Python: >=3.8
+License-File: LICENSE
+
+UNKNOWN
+
