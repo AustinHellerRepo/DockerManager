@@ -16,7 +16,8 @@ class DockerManagerTest(unittest.TestCase):
 		image_names = [
 			"helloworld",
 			"multiple_stdout",
-			"waits_five_seconds"
+			"waits_five_seconds",
+			"print_every_second_for_ten_seconds"
 		]
 
 		for image_name in image_names:
@@ -227,9 +228,9 @@ class DockerManagerTest(unittest.TestCase):
 			container_name="test_multiple_stdout_container"
 		)
 
-		time.sleep(1)
-
 		self.assertIsNotNone(docker_container_instance)
+
+		time.sleep(1)
 
 		stdout = docker_container_instance.get_stdout()
 
@@ -269,6 +270,71 @@ class DockerManagerTest(unittest.TestCase):
 		docker_container_instance.execute_command(
 			command="ls"
 		)
+
+		docker_container_instance.stop()
+
+		docker_manager.dispose()
+
+	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds"
+		)
+
+		docker_container_instance = docker_manager.start(
+			image_name="test_print_every_second_for_ten_seconds_image",
+			container_name="test_print_every_second_for_ten_seconds_container"
+		)
+
+		self.assertIsNotNone(docker_container_instance)
+
+		all_stdout = b""
+
+		for index in range(10):
+
+			time.sleep(1)
+
+			stdout = docker_container_instance.get_stdout()
+
+			if stdout is not None:
+				all_stdout += stdout
+
+		self.assertEqual(b"0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n", all_stdout)
+
+		docker_container_instance.stop()
+
+		docker_manager.dispose()
+
+	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout_with_echo(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds"
+		)
+
+		docker_container_instance = docker_manager.start(
+			image_name="test_print_every_second_for_ten_seconds_image",
+			container_name="test_print_every_second_for_ten_seconds_container"
+		)
+
+		self.assertIsNotNone(docker_container_instance)
+
+		all_stdout = b""
+
+		for index in range(10):
+
+			time.sleep(1)
+
+			stdout = docker_container_instance.get_stdout()
+
+			if stdout is not None:
+				all_stdout += stdout
+
+			if index == 5:
+				docker_container_instance.execute_command(
+					command=f"echo test{index}"
+				)
+
+		self.assertEqual(b"0\n1\n2\n3\n4\n5\ntest5\n6\n7\n8\n9\n", all_stdout)
 
 		docker_container_instance.stop()
 

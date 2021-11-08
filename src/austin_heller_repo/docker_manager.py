@@ -19,13 +19,17 @@ class DockerContainerInstance():
 		self.__docker_container = docker_container
 
 		self.__stdout = None
+		self.__docker_container_logs_sent_length = 0
 
 	def get_stdout(self) -> str:
 		logs = self.__docker_container.logs()
 		if logs != b"":
+			sending_length = len(logs)
+			unsent_logs = logs[self.__docker_container_logs_sent_length:sending_length]
+			self.__docker_container_logs_sent_length = sending_length
 			if self.__stdout is None:
 				self.__stdout = b""
-			self.__stdout += logs
+			self.__stdout += unsent_logs
 		if self.__stdout is None:
 			return None
 		else:
