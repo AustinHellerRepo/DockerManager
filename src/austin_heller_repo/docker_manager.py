@@ -21,7 +21,7 @@ class DockerContainerInstance():
 		self.__stdout = None
 		self.__docker_container_logs_sent_length = 0
 
-	def get_stdout(self) -> str:
+	def get_stdout(self) -> bytes:
 		logs = self.__docker_container.logs()
 		if logs != b"":
 			sending_length = len(logs)
@@ -47,13 +47,13 @@ class DockerContainerInstance():
 					self.__stdout = b""
 				self.__stdout += line
 
-	def copy_file(self, *, source_file_path: str, destination_file_path: str):
+	def copy_file(self, *, source_file_path: str, destination_directory_path: str):
 		stream = io.BytesIO()
 		with tarfile.open(fileobj=stream, mode="w|") as tar, open(source_file_path, "rb") as source_file_handle:
 			tar_info = tar.gettarinfo(fileobj=source_file_handle)
 			tar_info.name = os.path.basename(source_file_path)
 			tar.addfile(tar_info, source_file_handle)
-		self.__docker_container.put_archive(destination_file_path, stream.getvalue())
+		self.__docker_container.put_archive(destination_directory_path, stream.getvalue())
 
 	def stop(self):
 		if self.__docker_container is None:

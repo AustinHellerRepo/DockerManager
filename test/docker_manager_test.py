@@ -5,6 +5,7 @@ import docker.models.images
 import docker.errors
 import time
 from datetime import datetime
+import os
 
 
 class DockerManagerTest(unittest.TestCase):
@@ -240,40 +241,45 @@ class DockerManagerTest(unittest.TestCase):
 
 		docker_manager.dispose()
 
-	def _test_copying_file_to_container(self):
+	def test_copying_file_to_container(self):
 
-		temp_file = tempfile.TemporaryFile()
+		temp_file = tempfile.NamedTemporaryFile(delete=False)
 
-		temp_file.write("test")
+		temp_file.write(b"test")
 		temp_file.flush()
+		temp_file.close()
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_helloworld_image",
-			container_name="test_helloworld_container"
+			image_name="test_waits_five_seconds_image",
+			container_name="test_waits_five_seconds_container"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
 
-		stdout = docker_container_instance.get_stdout()
-
-		self.assertEqual(b"Hello world!\n", stdout)
-
 		docker_container_instance.copy_file(
 			source_file_path=temp_file.name,
-			destination_file_path="test.txt"
+			destination_directory_path="/"
 		)
+
+		file_name = os.path.basename(temp_file.name)
+
+		os.unlink(temp_file.name)
 
 		docker_container_instance.execute_command(
 			command="ls"
 		)
 
+		stdout = docker_container_instance.get_stdout()
+
 		docker_container_instance.stop()
 
 		docker_manager.dispose()
+
+		self.assertIn(file_name, stdout.decode())
 
 	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout(self):
 
