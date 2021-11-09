@@ -7,6 +7,7 @@ import re
 import io
 import tarfile
 import os
+from datetime import datetime
 
 
 class DockerContainerInstance():
@@ -42,9 +43,12 @@ class DockerContainerInstance():
 		if "exec failed" in str(lines) or "409 Client Error" in str(lines):
 			raise Exception(f"execute_command failed: {lines}")
 		for line in lines:
-			if line != 0:
+			if isinstance(line, int):
+				pass
+			else:
 				if self.__stdout is None:
 					self.__stdout = b""
+				print(f"line: {line}")
 				self.__stdout += line
 
 	def copy_file(self, *, source_file_path: str, destination_directory_path: str):
@@ -54,6 +58,9 @@ class DockerContainerInstance():
 			tar_info.name = os.path.basename(source_file_path)
 			tar.addfile(tar_info, source_file_handle)
 		self.__docker_container.put_archive(destination_directory_path, stream.getvalue())
+
+	def wait(self):
+		self.__docker_container.wait()
 
 	def stop(self):
 		if self.__docker_container is None:

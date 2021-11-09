@@ -18,10 +18,16 @@ class DockerManagerTest(unittest.TestCase):
 			"helloworld",
 			"multiple_stdout",
 			"waits_five_seconds",
-			"print_every_second_for_ten_seconds"
+			"print_every_second_for_ten_seconds",
+			"contains_script"
 		]
 
 		for image_name in image_names:
+
+			try:
+				docker_client.containers.get(f"test_{image_name}_container").kill()
+			except Exception as ex:
+				pass
 
 			try:
 				docker_client.containers.get(f"test_{image_name}_container").remove()
@@ -344,4 +350,99 @@ class DockerManagerTest(unittest.TestCase):
 
 		docker_container_instance.stop()
 
+		docker_manager.dispose()
+
+	def test_wait_for_container_to_complete_five_seconds(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+		)
+
+		before_start_datetime = datetime.utcnow()
+
+		docker_container_instance = docker_manager.start(
+			image_name="test_waits_five_seconds_image",
+			container_name="test_waits_five_seconds_container"
+		)
+
+		before_wait_datetime = datetime.utcnow()
+
+		docker_container_instance.wait()
+
+		end_datetime = datetime.utcnow()
+
+		docker_container_instance.stop()
+		docker_manager.dispose()
+
+		first_difference_seconds = (before_wait_datetime - before_start_datetime).total_seconds()
+
+		second_difference_seconds = (end_datetime - before_wait_datetime).total_seconds()
+
+		print(f"first_difference_seconds: {first_difference_seconds}")
+		print(f"second_difference_seconds: {second_difference_seconds}")
+
+		self.assertGreater(second_difference_seconds, first_difference_seconds)
+		self.assertGreater(second_difference_seconds, 5)
+
+	def test_wait_for_container_to_complete_five_seconds_already_completed(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+		)
+
+		before_start_datetime = datetime.utcnow()
+
+		docker_container_instance = docker_manager.start(
+			image_name="test_waits_five_seconds_image",
+			container_name="test_waits_five_seconds_container"
+		)
+
+		time.sleep(6)
+
+		before_wait_datetime = datetime.utcnow()
+
+		docker_container_instance.wait()
+
+		end_datetime = datetime.utcnow()
+
+		docker_container_instance.stop()
+		docker_manager.dispose()
+
+		first_difference_seconds = (before_wait_datetime - before_start_datetime).total_seconds()
+
+		second_difference_seconds = (end_datetime - before_wait_datetime).total_seconds()
+
+		print(f"first_difference_seconds: {first_difference_seconds}")
+		print(f"second_difference_seconds: {second_difference_seconds}")
+
+		self.assertGreater(1, second_difference_seconds)
+
+	def test_contains_script(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/contains_script"
+		)
+
+		docker_container_instance = docker_manager.start(
+			image_name="test_contains_script_image",
+			container_name="test_contains_script_container"
+		)
+
+		time.sleep(1)
+
+		first_stdout = docker_container_instance.get_stdout()
+		self.assertEqual(None, first_stdout)
+
+		for index in range(5):
+
+			docker_container_instance.execute_command(
+				command=f"python start.py {index}"
+			)
+
+			time.sleep(1)
+
+			second_stdout = docker_container_instance.get_stdout()
+			self.assertEqual(f"{index}\n".encode(), second_stdout)
+
+		docker_container_instance.stop()
 		docker_manager.dispose()
