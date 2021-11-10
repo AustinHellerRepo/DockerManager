@@ -1,11 +1,12 @@
 import unittest
-from src.austin_heller_repo.docker_manager import DockerManager, DockerContainerInstance
+from src.austin_heller_repo.docker_manager import DockerManager, DockerContainerInstance, DockerContainerInstanceAlreadyExistsException, DockerContainerAlreadyRemovedException
 import tempfile
 import docker.models.images
 import docker.errors
 import time
 from datetime import datetime
 import os
+import gc
 
 
 class DockerManagerTest(unittest.TestCase):
@@ -25,18 +26,18 @@ class DockerManagerTest(unittest.TestCase):
 		for image_name in image_names:
 
 			try:
-				docker_client.containers.get(f"test_{image_name}_container").kill()
+				docker_client.containers.get(f"test_{image_name}").kill()
 			except Exception as ex:
 				pass
 
 			try:
-				docker_client.containers.get(f"test_{image_name}_container").remove()
+				docker_client.containers.get(f"test_{image_name}").remove()
 			except Exception as ex:
 				pass
 
 			try:
 				docker_client.images.remove(
-					image=f"test_{image_name}_image"
+					image=f"test_{image_name}"
 				)
 			except Exception as ex:
 				pass
@@ -69,8 +70,7 @@ class DockerManagerTest(unittest.TestCase):
 
 		with self.assertRaises(docker.errors.APIError) as ex:
 			docker_container_instance = docker_manager.start(
-				image_name="test_empty_image",
-				container_name="test_empty_container"
+				name="test_empty"
 			)
 
 		temp_directory.cleanup()
@@ -79,7 +79,7 @@ class DockerManagerTest(unittest.TestCase):
 
 		docker_manager.dispose()
 
-	def test_whitespace_in_image_name_failed(self):
+	def test_whitespace_in_name_failed(self):
 
 		docker_manager = DockerManager(
 			dockerfile_directory_path="./dockerfiles/helloworld"
@@ -87,27 +87,10 @@ class DockerManagerTest(unittest.TestCase):
 
 		with self.assertRaises(Exception) as ex:
 			docker_container_instance = docker_manager.start(
-				image_name="test helloworld image",
-				container_name="test_helloworld_container"
+				name="test helloworld"
 			)
 
-		self.assertIn("Image name cannot contain whitespace.", str(ex.exception))
-
-		docker_manager.dispose()
-
-	def test_whitespace_in_container_name_failed(self):
-
-		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
-		)
-
-		with self.assertRaises(Exception) as ex:
-			docker_container_instance = docker_manager.start(
-				image_name="test_helloworld_image",
-				container_name="test helloworld container"
-			)
-
-		self.assertIn("Container name cannot contain whitespace.", str(ex.exception))
+		self.assertIn("Name cannot contain whitespace.", str(ex.exception))
 
 		docker_manager.dispose()
 
@@ -118,13 +101,13 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_helloworld_image",
-			container_name="test_helloworld_container"
+			name="test_helloworld"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -135,8 +118,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_helloworld_image",
-			container_name="test_helloworld_container"
+			name="test_helloworld"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
@@ -148,6 +130,7 @@ class DockerManagerTest(unittest.TestCase):
 		self.assertEqual(b"Hello world!\n", stdout)
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -158,8 +141,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_helloworld_image",
-			container_name="test_helloworld_container"
+			name="test_helloworld"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
@@ -179,6 +161,7 @@ class DockerManagerTest(unittest.TestCase):
 		self.assertRegex(str(ex.exception), "Container [a-f0-9]+ is not running")
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -191,8 +174,7 @@ class DockerManagerTest(unittest.TestCase):
 		print(f"time 0: {datetime.utcnow()}")
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_waits_five_seconds_image",
-			container_name="test_waits_five_seconds_container"
+			name="test_waits_five_seconds"
 		)
 
 		print(f"time 1: {datetime.utcnow()}")
@@ -221,6 +203,7 @@ class DockerManagerTest(unittest.TestCase):
 		print(f"stdout: {stdout}")
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -231,8 +214,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_multiple_stdout_image",
-			container_name="test_multiple_stdout_container"
+			name="test_multiple_stdout"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
@@ -244,6 +226,7 @@ class DockerManagerTest(unittest.TestCase):
 		self.assertEqual(b"first\nsecond\n", stdout)
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -260,8 +243,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_waits_five_seconds_image",
-			container_name="test_waits_five_seconds_container"
+			name="test_waits_five_seconds"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
@@ -282,6 +264,7 @@ class DockerManagerTest(unittest.TestCase):
 		stdout = docker_container_instance.get_stdout()
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -294,8 +277,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_print_every_second_for_ten_seconds_image",
-			container_name="test_print_every_second_for_ten_seconds_container"
+			name="test_print_every_second_for_ten_seconds"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
@@ -314,6 +296,7 @@ class DockerManagerTest(unittest.TestCase):
 		self.assertEqual(b"0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n", all_stdout)
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -324,8 +307,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_print_every_second_for_ten_seconds_image",
-			container_name="test_print_every_second_for_ten_seconds_container"
+			name="test_print_every_second_for_ten_seconds"
 		)
 
 		self.assertIsNotNone(docker_container_instance)
@@ -346,9 +328,10 @@ class DockerManagerTest(unittest.TestCase):
 					command=f"echo test{index}"
 				)
 
-		self.assertEqual(b"0\n1\n2\n3\n4\n5\ntest5\n6\n7\n8\n9\n", all_stdout)
+		self.assertIn(all_stdout, [b"0\n1\n2\n3\n4\n5\ntest5\n6\n7\n8\n9\n", b"0\n1\n2\n3\n4\ntest5\n5\n6\n7\n8\n9\n"])
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 
 		docker_manager.dispose()
 
@@ -361,8 +344,7 @@ class DockerManagerTest(unittest.TestCase):
 		before_start_datetime = datetime.utcnow()
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_waits_five_seconds_image",
-			container_name="test_waits_five_seconds_container"
+			name="test_waits_five_seconds"
 		)
 
 		before_wait_datetime = datetime.utcnow()
@@ -372,6 +354,7 @@ class DockerManagerTest(unittest.TestCase):
 		end_datetime = datetime.utcnow()
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 		docker_manager.dispose()
 
 		first_difference_seconds = (before_wait_datetime - before_start_datetime).total_seconds()
@@ -393,8 +376,7 @@ class DockerManagerTest(unittest.TestCase):
 		before_start_datetime = datetime.utcnow()
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_waits_five_seconds_image",
-			container_name="test_waits_five_seconds_container"
+			name="test_waits_five_seconds"
 		)
 
 		time.sleep(6)
@@ -406,6 +388,7 @@ class DockerManagerTest(unittest.TestCase):
 		end_datetime = datetime.utcnow()
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 		docker_manager.dispose()
 
 		first_difference_seconds = (before_wait_datetime - before_start_datetime).total_seconds()
@@ -424,8 +407,7 @@ class DockerManagerTest(unittest.TestCase):
 		)
 
 		docker_container_instance = docker_manager.start(
-			image_name="test_contains_script_image",
-			container_name="test_contains_script_container"
+			name="test_contains_script"
 		)
 
 		time.sleep(1)
@@ -433,7 +415,7 @@ class DockerManagerTest(unittest.TestCase):
 		first_stdout = docker_container_instance.get_stdout()
 		self.assertEqual(None, first_stdout)
 
-		for index in range(5):
+		for index in range(4):
 
 			docker_container_instance.execute_command(
 				command=f"python start.py {index}"
@@ -445,4 +427,67 @@ class DockerManagerTest(unittest.TestCase):
 			self.assertEqual(f"{index}\n".encode(), second_stdout)
 
 		docker_container_instance.stop()
+		docker_container_instance.remove()
 		docker_manager.dispose()
+
+	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout_with_echo_try_start_second_container_failed(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds"
+		)
+
+		docker_container_name = "test_print_every_second_for_ten_seconds"
+
+		docker_container_instance = docker_manager.start(
+			name=docker_container_name
+		)
+
+		self.assertIsNotNone(docker_container_instance)
+
+		all_stdout = b""
+
+		for index in range(10):
+
+			time.sleep(1)
+
+			stdout = docker_container_instance.get_stdout()
+
+			if stdout is not None:
+				all_stdout += stdout
+
+			if index == 5:
+				docker_container_instance.execute_command(
+					command=f"echo test{index}"
+				)
+			elif index == 7:
+				with self.assertRaises(DockerContainerInstanceAlreadyExistsException):
+					second_docker_container = docker_manager.start(
+						name=docker_container_name
+					)
+
+		self.assertIn(all_stdout, [b"0\n1\n2\n3\n4\n5\ntest5\n6\n7\n8\n9\n", b"0\n1\n2\n3\n4\ntest5\n5\n6\n7\n8\n9\n"])
+
+		docker_container_instance.stop()
+		docker_container_instance.remove()
+
+		docker_manager.dispose()
+
+	def test_start_container_stop_container_start_different_container_object_try_start_first_container_object(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+		)
+
+		first_docker_container_instance = docker_manager.start(
+			name="test_waits_five_seconds"
+		)
+
+		first_docker_container_instance.stop()
+		first_docker_container_instance.remove()
+
+		second_docker_container_instance = docker_manager.start(
+			name="test_waits_five_seconds"
+		)
+
+		with self.assertRaises(DockerContainerAlreadyRemovedException):
+			first_docker_container_instance.start()
