@@ -222,7 +222,7 @@ class DockerManager():
 			) or self.is_container_exists(
 				name=name
 			):
-				raise DockerContainerInstanceAlreadyExistsException(f"Cannot start container with the same name.")
+				raise DockerContainerInstanceAlreadyExistsException(f"Cannot start container with the same name \"{name}\".")
 
 			self.__docker_client.images.build(
 				path=self.__dockerfile_directory_path,
