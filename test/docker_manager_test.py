@@ -20,7 +20,9 @@ class DockerManagerTest(unittest.TestCase):
 			"multiple_stdout",
 			"waits_five_seconds",
 			"print_every_second_for_ten_seconds",
-			"contains_script"
+			"contains_script",
+			"helloworld_2",
+			"contains_script_2"
 		]
 
 		for image_name in image_names:
@@ -152,13 +154,10 @@ class DockerManagerTest(unittest.TestCase):
 
 		self.assertEqual(b"Hello world!\n", stdout)
 
-		with self.assertRaises(Exception) as ex:
-			docker_container_instance.execute_command(
-				command="ls"
-			)
-
-		#self.assertIn("execute_command failed: ", str(ex.exception))
-		self.assertRegex(str(ex.exception), "Container [a-f0-9]+ is not running")
+		# this used to raise an exception, but now it spawns a duplicate container and runs the command
+		docker_container_instance.execute_command(
+			command="ls"
+		)
 
 		docker_container_instance.stop()
 		docker_container_instance.remove()
@@ -491,3 +490,66 @@ class DockerManagerTest(unittest.TestCase):
 
 		with self.assertRaises(DockerContainerAlreadyRemovedException):
 			first_docker_container_instance.start()
+
+	def test_duplicate_container(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/contains_script"
+		)
+
+		times = []
+
+		times.append(datetime.utcnow())
+
+		first_docker_container_instance = docker_manager.start(
+			name="test_contains_script"
+		)
+
+		times.append(datetime.utcnow())
+
+		first_docker_container_instance.wait()
+
+		times.append(datetime.utcnow())
+
+		first_docker_container_instance.stop()
+
+		times.append(datetime.utcnow())
+
+		first_stdout = first_docker_container_instance.get_stdout()
+
+		print(f"first_stdout: {first_stdout}")
+
+		times.append(datetime.utcnow())
+
+		second_docker_container_instance = first_docker_container_instance.duplicate_container(
+			name="test_contains_script_2",
+			override_entrypoint_arguments=["python", "start.py", "test"]
+		)
+
+		times.append(datetime.utcnow())
+
+		second_docker_container_instance.start()
+
+		times.append(datetime.utcnow())
+
+		second_docker_container_instance.wait()
+
+		times.append(datetime.utcnow())
+
+		second_docker_container_instance.stop()
+
+		times.append(datetime.utcnow())
+
+		second_stdout = second_docker_container_instance.get_stdout()
+
+		print(f"second_stdout: {second_stdout}")
+
+		times.append(datetime.utcnow())
+
+		print(f"times: {times}")
+
+		first_docker_container_instance.remove()
+		second_docker_container_instance.remove()
+		docker_manager.dispose()
+
+		self.assertEqual(b"test\n", second_stdout)

@@ -4,11 +4,14 @@ import docker
 from docker.models.containers import Container
 from docker.models.images import Image
 from docker.client import DockerClient
+from docker.errors import APIError
 import re
 import io
 import tarfile
 import os
 from datetime import datetime
+import uuid
+import time
 
 
 class DockerContainerInstanceAlreadyExistsException(Exception):
@@ -58,20 +61,71 @@ class DockerContainerInstance():
 			self.__stdout = None
 			return line
 
+	def duplicate_container(self, *, name: str, override_entrypoint_arguments:List[str] = None) -> DockerContainerInstance:
+		duplicate_docker_image = self.__docker_container.commit(
+			repository=name
+		)  # type: Image
+
+		if override_entrypoint_arguments is not None and len(override_entrypoint_arguments) != 0:
+			concat_entrypoint_arguments = ""
+			for entrypoint_argument_index, entrypoint_argument in enumerate(override_entrypoint_arguments):
+				if entrypoint_argument_index != 0:
+					concat_entrypoint_arguments += " "
+				#concat_entrypoint_arguments += f"\"{entrypoint_argument}\""
+				concat_entrypoint_arguments += f"{entrypoint_argument}"
+
+			duplicate_docker_container = self.__docker_client.containers.create(
+				image=duplicate_docker_image,
+				name=name,
+				detach=True,
+				command=concat_entrypoint_arguments
+			)
+		else:
+			duplicate_docker_container = self.__docker_client.containers.create(
+				image=duplicate_docker_image
+			)
+		duplicate_docker_container_instance = DockerContainerInstance(
+			name=name,
+			docker_client=self.__docker_client,
+			docker_container=duplicate_docker_container
+		)
+		return duplicate_docker_container_instance
+
 	def execute_command(self, *, command: str):
 		if self.__docker_container is None:
 			raise DockerContainerAlreadyRemovedException(f"Docker container was previously removed.")
-		lines = self.__docker_container.exec_run(command, stderr=True, stdout=True)
-		if "exec failed" in str(lines) or "409 Client Error" in str(lines):
-			raise Exception(f"execute_command failed: {lines}")
-		for line in lines:
-			if isinstance(line, int):
-				pass
-			else:
+		is_successful = False
+		try:
+			lines = self.__docker_container.exec_run(command, stderr=True, stdout=True)
+			is_successful = True
+		except APIError as ex:
+			if "409 Client Error" in str(ex) and " is not running" in str(ex):
+				docker_clone_uuid = f"duplicate_{str(uuid.uuid4()).lower()}"
+				duplicate_docker_container = self.duplicate_container(
+					name=docker_clone_uuid,
+					override_entrypoint_arguments=[command]
+				)
+				duplicate_docker_container.start()
+				duplicate_docker_container.wait()
+				output = duplicate_docker_container.get_stdout()
+				duplicate_docker_container.stop()
+				duplicate_docker_container.remove()
+
 				if self.__stdout is None:
-					self.__stdout = b""
-				print(f"line: {line}")
-				self.__stdout += line
+					self.__stdout = output
+				else:
+					self.__stdout += output
+			else:
+				raise ex
+		if is_successful:
+			for line in lines:
+				if isinstance(line, int):
+					pass
+				else:
+					if self.__stdout is None:
+						self.__stdout = b""
+					print(f"line: {line}")
+					self.__stdout += line
 
 	def copy_file(self, *, source_file_path: str, destination_directory_path: str):
 		if self.__docker_container is None:
@@ -103,8 +157,8 @@ class DockerContainerInstance():
 	def start(self):
 		if self.__docker_container is None:
 			raise DockerContainerAlreadyRemovedException(f"Docker container was previously removed.")
-		if not self.is_running():
-			self.__docker_container.start()
+		print(f"docker_manager: start: self.is_running(): {self.is_running()}")
+		self.__docker_container.start()
 
 	def remove(self):
 		if self.__docker_container is None:
