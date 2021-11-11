@@ -6,4 +6,5 @@ src/austin_heller_repo/docker_manager.py
 src/docker_manager_austinhellerrepo.egg-info/PKG-INFO
 src/docker_manager_austinhellerrepo.egg-info/SOURCES.txt
 src/docker_manager_austinhellerrepo.egg-info/dependency_links.txt
+src/docker_manager_austinhellerrepo.egg-info/requires.txt
 src/docker_manager_austinhellerrepo.egg-info/top_level.txt
