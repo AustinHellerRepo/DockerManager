@@ -94,29 +94,35 @@ class DockerContainerInstance():
 		if self.__docker_container is None:
 			raise DockerContainerAlreadyRemovedException(f"Docker container was previously removed.")
 		is_successful = False
+		is_duplicate_required = False
 		try:
 			lines = self.__docker_container.exec_run(command, stderr=True, stdout=True)
+			if "exec failed" in str(lines) or "cannot exec in a stopped state" in str(lines):
+				is_duplicate_required = True
 			is_successful = True
 		except APIError as ex:
 			if "409 Client Error" in str(ex) and " is not running" in str(ex):
-				docker_clone_uuid = f"duplicate_{str(uuid.uuid4()).lower()}"
-				duplicate_docker_container = self.duplicate_container(
-					name=docker_clone_uuid,
-					override_entrypoint_arguments=[command]
-				)
-				duplicate_docker_container.start()
-				duplicate_docker_container.wait()
-				output = duplicate_docker_container.get_stdout()
-				duplicate_docker_container.stop()
-				duplicate_docker_container.remove()
-
-				if self.__stdout is None:
-					self.__stdout = output
-				else:
-					self.__stdout += output
+				is_duplicate_required = True
 			else:
 				raise ex
-		if is_successful:
+
+		if is_duplicate_required:
+			docker_clone_uuid = f"duplicate_{str(uuid.uuid4()).lower()}"
+			duplicate_docker_container = self.duplicate_container(
+				name=docker_clone_uuid,
+				override_entrypoint_arguments=[command]
+			)
+			duplicate_docker_container.start()
+			duplicate_docker_container.wait()
+			output = duplicate_docker_container.get_stdout()
+			duplicate_docker_container.stop()
+			duplicate_docker_container.remove()
+
+			if self.__stdout is None:
+				self.__stdout = output
+			else:
+				self.__stdout += output
+		elif is_successful:
 			for line in lines:
 				if isinstance(line, int):
 					pass
