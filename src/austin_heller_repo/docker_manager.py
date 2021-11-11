@@ -71,7 +71,6 @@ class DockerContainerInstance():
 			for entrypoint_argument_index, entrypoint_argument in enumerate(override_entrypoint_arguments):
 				if entrypoint_argument_index != 0:
 					concat_entrypoint_arguments += " "
-				#concat_entrypoint_arguments += f"\"{entrypoint_argument}\""
 				concat_entrypoint_arguments += f"{entrypoint_argument}"
 
 			duplicate_docker_container = self.__docker_client.containers.create(
@@ -152,12 +151,12 @@ class DockerContainerInstance():
 			raise DockerContainerAlreadyRemovedException(f"Docker container was previously removed.")
 		if self.is_running():
 			self.__docker_container.stop()
-			print(f"docker_manager: stop: self.__docker_container.status: {self.__docker_container.status}")
+			#print(f"docker_manager: stop: self.__docker_container.status: {self.__docker_container.status}")
 
 	def start(self):
 		if self.__docker_container is None:
 			raise DockerContainerAlreadyRemovedException(f"Docker container was previously removed.")
-		print(f"docker_manager: start: self.is_running(): {self.is_running()}")
+		#print(f"docker_manager: start: self.is_running(): {self.is_running()}")
 		self.__docker_container.start()
 
 	def remove(self):
