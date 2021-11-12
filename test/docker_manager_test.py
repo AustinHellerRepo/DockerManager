@@ -14,6 +14,7 @@ class DockerManagerTest(unittest.TestCase):
 	def setUp(self):
 
 		docker_client = docker.from_env()
+		api_client = docker.APIClient(base_url="unix://var/run/docker.sock")
 
 		image_names = [
 			"helloworld",
@@ -22,7 +23,8 @@ class DockerManagerTest(unittest.TestCase):
 			"print_every_second_for_ten_seconds",
 			"contains_script",
 			"helloworld_2",
-			"contains_script_2"
+			"contains_script_2",
+			"spawns_container"
 		]
 
 		for image_name in image_names:
@@ -38,9 +40,19 @@ class DockerManagerTest(unittest.TestCase):
 				pass
 
 			try:
+				api_client.remove_container(f"test_{image_name}", force=True)
+			except Exception as ex:
+				pass
+
+			try:
 				docker_client.images.remove(
 					image=f"test_{image_name}"
 				)
+			except Exception as ex:
+				pass
+
+			try:
+				api_client.remove_image(f"test_{image_name}", force=True)
 			except Exception as ex:
 				pass
 
@@ -553,3 +565,55 @@ class DockerManagerTest(unittest.TestCase):
 		docker_manager.dispose()
 
 		self.assertEqual(b"test\n", second_stdout)
+
+	def test_sequential_commands(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/helloworld"
+		)
+
+		docker_container_instance = docker_manager.start(
+			name="test_helloworld"
+		)
+
+		docker_container_instance.wait()
+
+		docker_container_instance.execute_command(
+			command="mkdir test_directory"
+		)
+
+		docker_container_instance.execute_command(
+			command="ls"
+		)
+
+		output = docker_container_instance.get_stdout()
+
+		docker_container_instance.stop()
+		docker_container_instance.remove()
+		docker_manager.dispose()
+
+		self.assertEqual(b"Hello world!\nbin\nboot\ndev\netc\nhome\nlib\nlib32\nlib64\nlibx32\nmedia\nmnt\nopt\nproc\nroot\nrun\nsbin\nsrv\nsys\ntest_directory\ntmp\nusr\nvar\n", output)
+
+	def test_spawn_container(self):
+
+		docker_manager = DockerManager(
+			dockerfile_directory_path="./dockerfiles/spawns_container"
+		)
+
+		docker_container_instance = docker_manager.start(
+			name="test_spawns_container"
+		)
+
+		docker_container_instance.execute_command(
+			command="python start.py -g https://github.com/AustinHellerRepo/TestDockerTimeDelay.git -s start.py -t 20"
+		)
+
+		docker_container_instance.wait()
+
+		output = docker_container_instance.get_stdout()
+
+		print(f"output: {output}")
+
+		docker_container_instance.stop()
+		docker_container_instance.remove()
+		docker_manager.dispose()

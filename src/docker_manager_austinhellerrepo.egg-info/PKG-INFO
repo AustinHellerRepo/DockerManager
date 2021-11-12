@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: docker-manager-austinhellerrepo
-Version: 0.0.16
+Version: 0.0.17
 Summary: A basic docker management package
 Home-page: https://github.com/AustinHellerRepo/DockerManager
 Author: Austin Heller
