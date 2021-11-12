@@ -193,49 +193,23 @@ class DockerManager():
 		self.__dockerfile_directory_path = dockerfile_directory_path
 
 		self.__is_docker_client_from_environment = True
-		self.__docker_client = None  # type: DockerClient
-		#self.__docker_client = docker.from_env()
-		#self.__docker_client = docker.APIClient(base_url="unix://var/run/docker.sock")
-
-		self.__initialize()
-
-	def __initialize(self):
-
-		if self.__is_docker_client_from_environment:
-			self.__docker_client = docker.from_env()
-		else:
-			self.__docker_client = docker.APIClient(base_url="unix://var/run/docker.sock")
+		self.__docker_client = docker.from_env()  # type: DockerClient
 
 	def is_image_exists(self, *, name: str) -> bool:
 
-		if self.__is_docker_client_from_environment:
-			images = self.__docker_client.images.list()
-			for image in images:
-				if f"{name}:latest" in image.tags:
-					return True
-			return False
-		else:
-			images = self.__docker_client.images()
-			for image in images:
-				if f"{name}:latest" in image["RepoTags"]:
-					return True
-			return False
+		images = self.__docker_client.images.list()
+		for image in images:
+			if f"{name}:latest" in image.tags:
+				return True
+		return False
 
 	def is_container_exists(self, *, name: str) -> bool:
 
-		if self.__is_docker_client_from_environment:
-			containers = self.__docker_client.containers.list()  # type: List[Container]
-			for container in containers:
-				if container.name == name:
-					return True
-			return False
-		else:
-			containers = self.__docker_client.containers()
-			for container in containers:
-				print(f"container: {container}")
-				if container.name == name:
-					return True
-			return False
+		containers = self.__docker_client.containers.list()  # type: List[Container]
+		for container in containers:
+			if container.name == name:
+				return True
+		return False
 
 	def get_existing_docker_container_instance_from_name(self, *, name: str) -> DockerContainerInstance:
 		if not self.is_container_exists(
@@ -269,58 +243,27 @@ class DockerManager():
 			):
 				raise DockerContainerInstanceAlreadyExistsException(f"Cannot start image/container with the same name \"{name}\".")
 
-			if True:
-				self.__docker_client.images.build(
-					path=self.__dockerfile_directory_path,
-					tag=name,
-					rm=True
-				)
-				#volume_binding = {
-				#	"/var/run/docker.sock": {
-				#		"bind": "/var/run/docker.sock",
-				#		"mode": "rw"
-				#	}
-				#}
-				#host_config = self.__docker_client.configs.create(
-				#	name="/var/run/docker.sock",
-				#	data=volume_binding
-				#)
-				docker_container = self.__docker_client.containers.run(
-					image=name,
-					name=name,
-					detach=True,
-					stdout=True,
-					stderr=True,
-					volumes=["/var/run/docker.sock:/var/run/docker.sock"]
-					#volumes=volumes,
-					#host_config=host_config
-				)
-			else:
-				self.__docker_client.images.build(
-					path=self.__dockerfile_directory_path,
-					tag=name,
-					rm=True
-				)
-				api_client = docker.APIClient(base_url="unix://var/run/docker.sock")
-				container_id = api_client.create_container(
-					image=name,
-					detach=True,
-					volumes=["/var/run/docker.sock"],
-					host_config=api_client.create_host_config(
-						binds={
-							"/var/run/docker.sock": {
-								"bind": "/var/run/docker.sock",
-								"mode": "rw"
-							}
-						}
-					)
-				)
-				docker_container = self.__docker_client.containers.list(filters={"name": name})[0]
+			self.__docker_client.images.build(
+				path=self.__dockerfile_directory_path,
+				tag=name,
+				rm=True
+			)
+
+			docker_container = self.__docker_client.containers.run(
+				image=name,
+				name=name,
+				detach=True,
+				stdout=True,
+				stderr=True,
+				volumes=["/var/run/docker.sock:/var/run/docker.sock"]
+			)
+
 			docker_container_instance = DockerContainerInstance(
 				name=name,
 				docker_client=self.__docker_client,
 				docker_container=docker_container
 			)
+
 			return docker_container_instance
 
 	def dispose(self):
