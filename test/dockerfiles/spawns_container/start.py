@@ -10,6 +10,7 @@ git_url = None  # type: str
 script_file_path = None  # type: str
 script_arguments = []  # type: List[str]
 timeout_seconds = None  # type: float
+is_docker_socket_needed = None  # type: bool
 
 arg_index = 1
 while arg_index < len(sys.argv):
@@ -31,9 +32,16 @@ while arg_index < len(sys.argv):
 			raise Exception(f"Already provided timeout seconds. Have \"{timeout_seconds}\", found \"{sys.argv[arg_index]}\".")
 		arg_index += 1
 		timeout_seconds = float(sys.argv[arg_index])
+	elif sys.argv[arg_index] == "-d":
+		if is_docker_socket_needed is not None:
+			raise Exception(f"Already specified that docker socket was needed.")
+		is_docker_socket_needed = True
 	else:
 		raise Exception(f"Failed to parse commandline argument: \"{sys.argv[arg_index]}\".")
 	arg_index += 1
+
+if is_docker_socket_needed is None:
+	is_docker_socket_needed = False
 
 temp_directory = tempfile.TemporaryDirectory()
 
@@ -56,13 +64,14 @@ try:
 		git_repo_clone_url=git_url,
 		script_file_path=script_file_path,
 		script_arguments=script_arguments,
-		timeout_seconds=timeout_seconds
+		timeout_seconds=timeout_seconds,
+		is_docker_socket_needed=is_docker_socket_needed
 	) as vccpi:
 
 		start_time = datetime.utcnow()
 		vccpi.wait()
 		end_time = datetime.utcnow()
-		child_output = json.loads(vccpi.get_output())
+		child_output = json.loads(vccpi.get_output().decode())
 		output["data"] = [
 			child_output["data"],
 			git_url,

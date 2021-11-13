@@ -139,8 +139,15 @@ class DockerContainerInstance():
 				else:
 					self.__stdout += output
 
+			# remove current container
 			self.__docker_container.remove()
+			self.__docker_client.images.remove(self.__name)
+
+			# take over duplicated container
 			self.__docker_container = duplicate_docker_container.__docker_container
+			self.__name = duplicate_docker_container.__name
+
+			# alter current container to behave correctly as a duplicate
 			self.__is_duplicate = True
 			self.__docker_container_logs_sent_length = duplicate_docker_container.__docker_container_logs_sent_length
 

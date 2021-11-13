@@ -635,6 +635,8 @@ class DockerManagerTest(unittest.TestCase):
 
 		output = docker_container_instance.get_stdout()
 
+		print(f"output: {output}")
+
 		output_json = json.loads(output.decode())
 
 		self.assertEqual(0, len(output_json["data"][0]))
