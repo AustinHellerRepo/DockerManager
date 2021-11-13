@@ -34,11 +34,12 @@ class DockerContainerAlreadyRemovedException(Exception):
 
 class DockerContainerInstance():
 
-	def __init__(self, *, name: str, docker_client: DockerClient, docker_container: Container):
+	def __init__(self, *, name: str, docker_client: DockerClient, docker_container: Container, is_docker_socket_needed: bool):
 
 		self.__name = name
 		self.__docker_client = docker_client
 		self.__docker_container = docker_container
+		self.__is_docker_socket_needed = is_docker_socket_needed
 
 		self.__stdout = None
 		self.__docker_container_logs_sent_length = 0
@@ -62,7 +63,7 @@ class DockerContainerInstance():
 			self.__stdout = None
 			return line
 
-	def duplicate_container(self, *, name: str, override_entrypoint_arguments:List[str] = None) -> DockerContainerInstance:
+	def duplicate_container(self, *, name: str, override_entrypoint_arguments: List[str] = None) -> DockerContainerInstance:
 		duplicate_docker_image = self.__docker_container.commit(
 			repository=name
 		)  # type: Image
@@ -74,13 +75,21 @@ class DockerContainerInstance():
 					concat_entrypoint_arguments += " "
 				concat_entrypoint_arguments += f"{entrypoint_argument}"
 
-			duplicate_docker_container = self.__docker_client.containers.create(
-				image=duplicate_docker_image,
-				name=name,
-				detach=True,
-				command=concat_entrypoint_arguments,
-				volumes=["/var/run/docker.sock:/var/run/docker.sock"]
-			)
+			if self.__is_docker_socket_needed:
+				duplicate_docker_container = self.__docker_client.containers.create(
+					image=duplicate_docker_image,
+					name=name,
+					detach=True,
+					command=concat_entrypoint_arguments,
+					volumes=["/var/run/docker.sock:/var/run/docker.sock"]
+				)
+			else:
+				duplicate_docker_container = self.__docker_client.containers.create(
+					image=duplicate_docker_image,
+					name=name,
+					detach=True,
+					command=concat_entrypoint_arguments
+				)
 		else:
 			duplicate_docker_container = self.__docker_client.containers.create(
 				image=duplicate_docker_image
@@ -88,7 +97,8 @@ class DockerContainerInstance():
 		duplicate_docker_container_instance = DockerContainerInstance(
 			name=name,
 			docker_client=self.__docker_client,
-			docker_container=duplicate_docker_container
+			docker_container=duplicate_docker_container,
+			is_docker_socket_needed=self.__is_docker_socket_needed
 		)
 		return duplicate_docker_container_instance
 
@@ -188,9 +198,10 @@ class DockerContainerInstance():
 
 class DockerManager():
 
-	def __init__(self, *, dockerfile_directory_path: str):
+	def __init__(self, *, dockerfile_directory_path: str, is_docker_socket_needed: bool):
 
 		self.__dockerfile_directory_path = dockerfile_directory_path
+		self.__is_docker_socket_needed = is_docker_socket_needed
 
 		self.__is_docker_client_from_environment = True
 		self.__docker_client = docker.from_env()  # type: DockerClient
@@ -227,7 +238,8 @@ class DockerManager():
 		docker_container_instance = DockerContainerInstance(
 			name=name,
 			docker_client=self.__docker_client,
-			docker_container=found_container
+			docker_container=found_container,
+			is_docker_socket_needed=self.__is_docker_socket_needed
 		)
 		return docker_container_instance
 
@@ -249,19 +261,29 @@ class DockerManager():
 				rm=True
 			)
 
-			docker_container = self.__docker_client.containers.run(
-				image=name,
-				name=name,
-				detach=True,
-				stdout=True,
-				stderr=True,
-				volumes=["/var/run/docker.sock:/var/run/docker.sock"]
-			)
+			if self.__is_docker_socket_needed:
+				docker_container = self.__docker_client.containers.run(
+					image=name,
+					name=name,
+					detach=True,
+					stdout=True,
+					stderr=True,
+					volumes=["/var/run/docker.sock:/var/run/docker.sock"]
+				)
+			else:
+				docker_container = self.__docker_client.containers.run(
+					image=name,
+					name=name,
+					detach=True,
+					stdout=True,
+					stderr=True
+				)
 
 			docker_container_instance = DockerContainerInstance(
 				name=name,
 				docker_client=self.__docker_client,
-				docker_container=docker_container
+				docker_container=docker_container,
+				is_docker_socket_needed=self.__is_docker_socket_needed
 			)
 
 			return docker_container_instance

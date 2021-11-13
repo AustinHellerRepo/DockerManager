@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 import os
 import gc
+import json
 
 
 class DockerManagerTest(unittest.TestCase):
@@ -63,7 +64,8 @@ class DockerManagerTest(unittest.TestCase):
 		temp_directory = tempfile.TemporaryDirectory()
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path=temp_directory.name
+			dockerfile_directory_path=temp_directory.name,
+			is_docker_socket_needed=False
 		)
 
 		self.assertIsNotNone(docker_manager)
@@ -77,7 +79,8 @@ class DockerManagerTest(unittest.TestCase):
 		temp_directory = tempfile.TemporaryDirectory()
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path=temp_directory.name
+			dockerfile_directory_path=temp_directory.name,
+			is_docker_socket_needed=False
 		)
 
 		self.assertIsNotNone(docker_manager)
@@ -96,7 +99,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_whitespace_in_name_failed(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
+			dockerfile_directory_path="./dockerfiles/helloworld",
+			is_docker_socket_needed=False
 		)
 
 		with self.assertRaises(Exception) as ex:
@@ -111,7 +115,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_helloworld_docker_image(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
+			dockerfile_directory_path="./dockerfiles/helloworld",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -128,7 +133,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_helloworld_docker_image_get_stdout(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
+			dockerfile_directory_path="./dockerfiles/helloworld",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -151,7 +157,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_helloworld_docker_image_ls_command_failed(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
+			dockerfile_directory_path="./dockerfiles/helloworld",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -179,7 +186,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_waits_five_seconds_docker_image_ls_command(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds",
+			is_docker_socket_needed=False
 		)
 
 		print(f"time 0: {datetime.utcnow()}")
@@ -221,7 +229,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_multiple_stdout_docker_image_get_stdout(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/multiple_stdout"
+			dockerfile_directory_path="./dockerfiles/multiple_stdout",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -250,7 +259,8 @@ class DockerManagerTest(unittest.TestCase):
 		temp_file.close()
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -284,7 +294,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds"
+			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -314,7 +325,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout_with_echo(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds"
+			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -349,7 +361,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_wait_for_container_to_complete_five_seconds(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds",
+			is_docker_socket_needed=False
 		)
 
 		before_start_datetime = datetime.utcnow()
@@ -381,7 +394,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_wait_for_container_to_complete_five_seconds_already_completed(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds",
+			is_docker_socket_needed=False
 		)
 
 		before_start_datetime = datetime.utcnow()
@@ -414,7 +428,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_contains_script(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/contains_script"
+			dockerfile_directory_path="./dockerfiles/contains_script",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -444,7 +459,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_print_every_second_for_ten_seconds_docker_image_get_stdout_with_echo_try_start_second_container_failed(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds"
+			dockerfile_directory_path="./dockerfiles/print_every_second_for_ten_seconds",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_name = "test_print_every_second_for_ten_seconds"
@@ -486,7 +502,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_start_container_stop_container_start_different_container_object_try_start_first_container_object(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/waits_five_seconds"
+			dockerfile_directory_path="./dockerfiles/waits_five_seconds",
+			is_docker_socket_needed=False
 		)
 
 		first_docker_container_instance = docker_manager.start(
@@ -506,7 +523,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_duplicate_container(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/contains_script"
+			dockerfile_directory_path="./dockerfiles/contains_script",
+			is_docker_socket_needed=False
 		)
 
 		times = []
@@ -569,7 +587,8 @@ class DockerManagerTest(unittest.TestCase):
 	def test_sequential_commands(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/helloworld"
+			dockerfile_directory_path="./dockerfiles/helloworld",
+			is_docker_socket_needed=False
 		)
 
 		docker_container_instance = docker_manager.start(
@@ -597,22 +616,32 @@ class DockerManagerTest(unittest.TestCase):
 	def test_spawn_container(self):
 
 		docker_manager = DockerManager(
-			dockerfile_directory_path="./dockerfiles/spawns_container"
+			dockerfile_directory_path="./dockerfiles/spawns_container",
+			is_docker_socket_needed=True
 		)
 
 		docker_container_instance = docker_manager.start(
 			name="test_spawns_container"
 		)
 
+		git_url = "https://github.com/AustinHellerRepo/TestDockerTimeDelay.git"
+		script_file_path = "start.py"
+
 		docker_container_instance.execute_command(
-			command="python start.py -g https://github.com/AustinHellerRepo/TestDockerTimeDelay.git -s start.py -t 20"
+			command=f"python start.py -g {git_url} -s {script_file_path} -t 20"
 		)
 
 		docker_container_instance.wait()
 
 		output = docker_container_instance.get_stdout()
 
-		print(f"output: {output}")
+		output_json = json.loads(output.decode())
+
+		self.assertEqual(0, len(output_json["data"][0]))
+		self.assertEqual(git_url, output_json["data"][1])
+		self.assertEqual(script_file_path, output_json["data"][2])
+
+		print(f"Execution time: {output_json['data'][4]}")
 
 		docker_container_instance.stop()
 		docker_container_instance.remove()
